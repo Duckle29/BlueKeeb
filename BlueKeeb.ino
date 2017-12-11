@@ -12,14 +12,52 @@
  any redistribution
 *********************************************************************/
 #include <bluefruit.h>
+#include <Wire.h>
 
 BLEDis bledis;
 BLEHidAdafruit blehid;
 
-bool hasKeyPressed = false;
+// I2C settings
+#define I2CADDR 4
+
+// Global variables used to store the current keys
+uint8_t modifiers = 0x00;
+volatile uint8_t key_buffer[6];
+uint8_t pressed_keys = 0;
+
+bool buffer_changed = false;
+
+uint16_t consumer_val = 0;
+bool consumer_high_byte_received = 0;
+
+enum key_type
+{
+  KEY = 0,
+  MODIFIER,
+  MEDIA
+} type = KEY;
+bool key_release = 0;
+
+// Status byte, stores the current status / error states
+volatile uint8_t keeb_status = 0b00000000;
+/* Table of bits and their meaning:
+  BIT | meaning
+   7  | 
+   6  | 
+   5  | 
+   4  | 
+   3  | 
+   2  | Key already released
+   1  | Key already pressed
+   0  | ROLL OVER, too many keys pressed, key_presses ignored
+*/
 
 void setup() 
 {
+  Wire.begin(I2CADDR);
+  Wire.onReceive(receiveEvent); // register event
+  Wire.onRequest(requestedData);
+
   Bluefruit.begin();
   // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
   Bluefruit.setTxPower(4);
@@ -77,34 +115,119 @@ void startAdv(void)
   Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds
 }
 
+void receiveEvent(int numBytes)
+{
+  while(Wire.available())
+  {
+    uint8_t b = Wire.read();
+
+    // Any byte with 0xF* is considered a type changer, to signal if a modifer, normal key or media key is being sent.
+    // Additionally bit 3 signals a key_release is to be signaled.
+    if((b & 0xF0) == 0xF0)
+    {
+      type = b & 0x07;
+      key_release = (b & bit(3)) >> 3;
+      continue;
+    }
+
+    // BLE HID is 6KRO, if we are holding 6 keys, set status bit and ignore.
+    if(!key_release && pressed_keys >5 && type == KEY)
+    {
+      bitSet(keeb_status, 0);
+    }
+    else
+    {
+      set_key(b, !key_release);
+    }
+  }
+
+  if(buffer_changed)
+  {
+    buffer_changed = false;
+    blehid.keyboardReport(modifiers, key_buffer);
+  }
+}
+
+void set_key(uint8_t key, bool press)
+{
+  // If a modifier is being set, do so
+  if(type == MODIFIER)
+  {
+    bitWrite(modifiers, key, press);
+    buffer_changed = true;
+  }
+  else if(type == MEDIA)
+  {
+    if(press)
+    {
+      consumer_val = (consumer_val << 8) | key;
+      if(consumer_byte_received) // If We've already received 1 byte of the consumer val
+      {
+        consumer_high_byte_received = false;
+        blehid.consumerKeyPress(consumer_val);
+      }
+      else // If we haven't received a byte already, remember that we just did
+      {
+        consumer_high_byte_received = true;
+      }
+    }
+    else
+    {
+      blehid.consumerKeyPress(0);
+    }
+  }
+  else
+  {
+    // Check the buffer if the key is set.
+    bool is_set = false;
+    for(uint8_t i = 0; i<6; i++)
+    {
+      if(key_buffer[i] == key)
+      {
+        is_set = true;
+        // Do the apropriate checks/actions depending on press
+        if(press)
+        {
+          bitSet(keeb_status, 1); // Set the flag in status
+        }
+        else
+        {
+          // Shuffle all higher codes down, and clear byte 5
+          for(uint8_t k = i; k<5; k++)
+          {
+            key_buffer[k] = key_buffer[k+1];
+          }
+          key_buffer[5] = 0x00;
+          pressed_keys--;
+          buffer_changed = true;
+        }
+        break;
+      }
+    }
+
+    // If the key isn't already set, and we want to set it, set it.
+    if(!is_set && press)
+    {
+      bitClear(keeb_status, 0);
+      key_buffer[pressed_keys++] = key;
+      buffer_changed = true;
+    }
+    else if(!is_set && !press)
+    {
+      bitSet(keeb_status, 2);
+    }
+  }  
+}
+
+void requestedData(void)
+{
+  Wire.write(keeb_status);
+  // Some bits are considered single warnings, and are cleared after being sent
+  keeb_status &= 0xF9;
+}
+
 void loop() 
 {
-  // Only send KeyRelease if previously pressed to avoid sending
-  // multiple keyRelease reports (that consume memory and bandwidth)
-  if ( hasKeyPressed )
-  {
-    hasKeyPressed = false;
-    blehid.keyRelease();
-    
-    // Delay a bit after a report
-    delay(5);
-  }
-    
-  if (Serial.available())
-  {
-    char ch = (char) Serial.read();
-
-    // echo
-    Serial.write(ch); 
-
-    blehid.keyPress(ch);
-    hasKeyPressed = true;
-    
-    // Delay a bit after a report
-    delay(5);
-  }
-
-  // Request CPU to enter low-power mode until an event/interrupt occurs
   waitForEvent();  
 }
 
