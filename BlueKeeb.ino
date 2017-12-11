@@ -1,15 +1,12 @@
 /*********************************************************************
- This is an example for our nRF52 based Bluefruit LE modules
-
- Pick one up today in the adafruit shop!
+ This is firmware for Adafruits nRF52 Feather, 
+ it serves as an I2C -> BLE keyboard bridge
 
  Adafruit invests time and resources providing this open source code,
  please support Adafruit and open-source hardware by purchasing
  products from Adafruit!
 
  MIT license, check LICENSE for more information
- All text above, and the splash screen below must be included in
- any redistribution
 *********************************************************************/
 #include <bluefruit.h>
 #include <Wire.h>
