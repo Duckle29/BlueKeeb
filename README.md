@@ -13,10 +13,10 @@ is being sent, the keyboard should send a type change byte first.
 
  Bit  | Function 
 ------|----------
-Bit7:4| Has to be set to 1 to indicate a Type change byte
-Bit3  | If set indicates that any further keys send, are to be released
-bit2  | Reserved for future use
-bit1:0| The type of keycode sent after the type change
+Bit 7:4| Has to be set to 1 to indicate a Type change byte
+Bit 3  | If set indicates that any further keys send, are to be released
+bit 2  | Reserved for future use
+bit 1:0| The type of keycode sent after the type change
 
 Types are currently:
 
@@ -42,7 +42,7 @@ to see if ROLL_OVER has been hit.
 ## Modifiers
 If the correct type is set, send the value corrosponding to the modifer
 
- Bit | Modifier
+ Value | Modifier
 :---:|----------
 0 | left control
 1 | left shift
@@ -59,7 +59,7 @@ If the correct type is set, send the value corrosponding to the media key
 Only common functions are listed here, for a full consumer page, consult [the HID standard](http://www.usb.org/developers/hidpage/Hut1_12v2.pdf)
 
 Value | Function
------:|---------
+:----:|---------
 30 | Power
 31 | Reset
 32 | Sleep
