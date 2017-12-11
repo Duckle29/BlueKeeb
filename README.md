@@ -11,8 +11,6 @@ BlueKeeb starts assuming any bytes sent to it will be normal key_down events.
 If that isn't the case, and instead a media key, a modifer or a key_down event
 is being sent, the keyboard should send a type change byte first.
 
-![Type change byte](images/type-change-byte.png "Type change byte")
-
  Bit  | Function 
 ------|----------
 Bit7:4| Has to be set to 1 to indicate a Type change byte
