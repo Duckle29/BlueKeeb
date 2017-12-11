@@ -1,5 +1,5 @@
 # BlueKeeb
-This software is meant to be used with the Adafruit nRF52 feather
+This software is meant to be used with the [Adafruit nRF52 feather](https://www.adafruit.com/product/3406)
 and is meant to connect to any keyboards over I2C, converting that keyboard
 into a bluetooth keyboard.
 
